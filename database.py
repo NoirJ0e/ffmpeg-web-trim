@@ -1,4 +1,4 @@
-import sqlite4
+import sqlite3
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -6,17 +6,16 @@ logging.basicConfig(level=logging.INFO)
 
 def db_initialize():
     try:
-        conn = sqlite4.connect("app.db")
+        conn = sqlite3.connect("app.db")
         c = conn.cursor()
         # Create user table
         c.execute(
             """CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     email TEXT UNIQUE NOT NULL,
-                    hashed_password TEXT NOT NULL,
+                    hashed_password TEXT NOT NULL
                     )"""
         )
-        # create history operation table
         c.execute(
             """CREATE TABLE IF NOT EXISTS operations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,11 +24,10 @@ def db_initialize():
                     start_time TEXT NOT NULL,
                     end_time TEXT NOT NULL,
                     processed_video_url TEXT NOT NULL,
-                    operation_id INTEGER NOT NULL AUTOINCREMENT,
                     finished INTEGER NOT NULL DEFAULT 0,
-                    FOREIGN KEY (user_id) REFERENCES users (id),
-                    )
-                  """
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+              """
         )
         conn.commit()
     except Exception as e:
@@ -40,8 +38,8 @@ def db_initialize():
 
 def db_get_connection():
     try:
-        conn = sqlite4.connect("app.db")
-        conn.row_factory = sqlite4.Row
+        conn = sqlite3.connect("app.db")
+        conn.row_factory = sqlite3.Row
         return conn
     except Exception as e:
         logging.error(f"db_get_connection(): Error connecting to database: {e}")
@@ -107,14 +105,7 @@ def db_add_operation(
         c = conn.cursor()
         c.execute(
             "INSERT INTO operations (user_id, video_url, start_time, end_time, processed_video_url, finished) VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                user_id,
-                video_url,
-                start_time,
-                end_time,
-                processed_video_url,
-                finished,
-            ),
+            (user_id, video_url, start_time, end_time, processed_video_url, finished),
         )
         conn.commit()
         return True

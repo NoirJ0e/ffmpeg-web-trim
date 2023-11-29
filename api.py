@@ -1,4 +1,3 @@
-from multiprocessing import process
 from flask import Flask, request, jsonify, send_from_directory
 from flask_jwt_extended import (
     JWTManager,

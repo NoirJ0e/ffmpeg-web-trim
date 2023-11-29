@@ -8,13 +8,13 @@ logging.basicConfig(level=logging.INFO)
 
 
 # Incase multiple user operate the same time, unique file name would be better than a static file name
-def create_unique_file_name(extension=".mp4"):
+def create_unique_file_name(prefix="", extension=".mp4"):
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         logging.info(
             f"create_unique_file_name(): Created unique file name {timestamp}{extension}"
         )
-        return f"{timestamp}{extension}"
+        return f"{prefix}{timestamp}{extension}"
 
     except Exception as e:
         logging.error(
@@ -37,6 +37,7 @@ def download_video(url, output_file):
 
 def ffmpeg_process_video(src_file_path, start_time, end_time, resouce_folder):
     try:
+        # TODO: Path is incorrect right now, maybe use absolute path or full relative path would fix this
         output_file = os.path.join(
             resouce_folder, create_unique_file_name(prefix="output_video_")
         )

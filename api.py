@@ -1,8 +1,7 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
-    get_jwt,
     get_jwt_identity,
     jwt_required,
 )
@@ -91,8 +90,10 @@ def upload_file():
 @jwt_required()
 def edit_video():
     try:
-        # Assuming the JWT identity is the user's email
         user_email = get_jwt_identity()
+        user_id = database.db_get_user_id(user_email)
+        if user_id is None:
+            return jsonify({"error": "User not found"}), 404
 
         data = request.get_json()
         src_file_path = data.get("src_file_path")
@@ -103,20 +104,11 @@ def edit_video():
         edited_video_url = ffmpeg_process_video(
             src_file_path, start_time, end_time, app.config["OUTPUT_FOLDER"]
         )
-
-        # Store operation record in the database
-        # conn = database.get_db_connection()
-        # c = conn.cursor()
-        # c.execute(
-        #     "INSERT INTO operations (user_email, video_url, start_time, end_time, edited_video_url) VALUES (?, ?, ?, ?, ?)",
-        #     (user_email, video_url, start_time, end_time, edited_video_url),
-        # )
-        # conn.commit()
-
+        database.db_add_operation(
+            user_id, src_file_path, start_time, end_time, edited_video_url
+        )
         return jsonify({"success": True, "edited_video_url": edited_video_url}), 200
 
     except Exception as e:
         logging.error(f"edit_video(): {e}")
         return jsonify({"error": "Internal Server Error"}), 500
-    # finally:
-    # conn.close()

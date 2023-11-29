@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from multiprocessing import process
+from flask import Flask, request, jsonify, send_from_directory
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
@@ -111,4 +112,27 @@ def edit_video():
 
     except Exception as e:
         logging.error(f"edit_video(): {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+
+@app.route("/user/download_video", methods=["GET"])
+@jwt_required()
+# TODO: Allow user to fetch a specific video instead of the latest one
+def download_video():
+    try:
+        # fetch the processed video url from the database
+        user_email = get_jwt_identity()
+        operation_id = database.db_get_operation_id(user_email)
+        if not operation_id:
+            return jsonify({"error": "Video not found"}), 404
+        processed_video_url = database.db_get_processed_video_url(
+            user_email, operation_id
+        )
+        directory = os.path.dirname(processed_video_url)
+        filename = os.path.basename(processed_video_url)
+
+        return send_from_directory(directory, filename, as_attachment=True), 200
+
+    except Exception as e:
+        logging.error(f"download_video(): {e}")
         return jsonify({"error": "Internal Server Error"}), 500

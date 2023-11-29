@@ -25,6 +25,7 @@ def db_initialize():
                     start_time TEXT NOT NULL,
                     end_time TEXT NOT NULL,
                     processed_video_url TEXT NOT NULL,
+                    operation_id INTEGER NOT NULL AUTOINCREMENT,
                     finished INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (user_id) REFERENCES users (id),
                     )
@@ -56,7 +57,7 @@ def db_check_user(email, hashed_password):
         )
         user = c.fetchone()
         if user:
-            return user
+            return user[0]
         else:
             raise Exception("User not found")
     except Exception as e:
@@ -122,3 +123,40 @@ def db_add_operation(
         return False
     finally:
         conn.close()
+
+
+def db_get_operation_id(email):
+    try:
+        user_id = db_get_user_id(email)
+        conn = db_get_connection()
+        c = conn.cursor()
+        operation_id = c.execute(
+            "SELECT operation_id FROM operations WHERE user_id=?", (user_id,)
+        )
+        if operation_id:
+            return operation_id[0]
+        else:
+            raise Exception("operation not found")
+    except Exception as e:
+        logging.error(f"db_get_operation_id(): Error getting operation id: {e}")
+        return None
+    finally:
+        conn.close()
+
+
+def db_get_processed_video(email, operation_id):
+    try:
+        user_id = db_get_user_id(email)
+        conn = db_get_connection()
+        c = conn.cursor()
+        processed_video = c.execute(
+            "SELECT processed_video_url FROM operations WHERE user_id=? AND operation_id=?",
+            (user_id, operation_id),
+        )
+        if processed_video:
+            return processed_video[0]
+        else:
+            raise Exception("processed_video not found")
+    except Exception as e:
+        logging.error(f"db_get_processed_video(): Error getting processed_video: {e}")
+        return None

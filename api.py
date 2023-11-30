@@ -16,8 +16,10 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 UPLOAD_FOLDER = "./resources/upload"
 OUTPUT_FOLDER = "./resources/output"
+RES_FOLDER = "./resources"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["OUTPUT_FOLDER"] = OUTPUT_FOLDER
+app.config["RES_FOLDER"] = RES_FOLDER
 app.config[
     "JWT_SECRET_KEY"
 ] = "7xquF94FFn9mct3QKtxK8yNRqXZMxRpPnoaytp2ohhVRgA3G32fta8YdcYyQy4a6GEpNEJFTAuAiTmVnFwyMTj6bXgakWVGCNqHu"
@@ -102,7 +104,7 @@ def edit_video():
 
         # Process the video (this function needs to be implemented)
         edited_video_url = ffmpeg_process_video(
-            src_file_path, start_time, end_time, app.config["OUTPUT_FOLDER"]
+            src_file_path, start_time, end_time, app.config["RES_FOLDER"]
         )
         database.db_add_operation(
             user_id, src_file_path, start_time, end_time, edited_video_url
@@ -116,21 +118,25 @@ def edit_video():
 
 @app.route("/user/download_video", methods=["GET"])
 @jwt_required()
-# TODO: Allow user to fetch a specific video instead of the latest one
 def download_video():
     try:
-        # fetch the processed video url from the database
         user_email = get_jwt_identity()
         operation_id = database.db_get_operation_id(user_email)
         if not operation_id:
             return jsonify({"error": "Video not found"}), 404
-        processed_video_url = database.db_get_processed_video_url(
-            user_email, operation_id
-        )
-        directory = os.path.dirname(processed_video_url)
-        filename = os.path.basename(processed_video_url)
 
-        return send_from_directory(directory, filename, as_attachment=True), 200
+        processed_video_url = database.db_get_processed_video(user_email, operation_id)
+
+        # Assuming processed_video_url is a relative path from the resources directory
+        resources_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "resources"
+        )
+        full_path = os.path.join(resources_dir, processed_video_url.strip("./"))
+
+        directory = os.path.dirname(full_path)
+        filename = os.path.basename(full_path)
+
+        return send_from_directory(directory, filename, as_attachment=True)
 
     except Exception as e:
         logging.error(f"download_video(): {e}")

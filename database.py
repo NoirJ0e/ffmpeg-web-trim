@@ -1,3 +1,4 @@
+from multiprocessing import process
 import sqlite3
 import logging
 
@@ -100,6 +101,7 @@ def db_add_user(email, hashed_password):
 def db_add_operation(
     user_id, video_url, start_time, end_time, processed_video_url, finished=0
 ):
+    logging.info(f"db_add_operation(): processing video {processed_video_url}")
     try:
         conn = db_get_connection()
         c = conn.cursor()
@@ -121,9 +123,8 @@ def db_get_operation_id(email):
         user_id = db_get_user_id(email)
         conn = db_get_connection()
         c = conn.cursor()
-        operation_id = c.execute(
-            "SELECT operation_id FROM operations WHERE user_id=?", (user_id,)
-        )
+        c.execute("SELECT id FROM operations WHERE user_id=?", (user_id,))
+        operation_id = c.fetchone()
         if operation_id:
             return operation_id[0]
         else:
@@ -140,11 +141,13 @@ def db_get_processed_video(email, operation_id):
         user_id = db_get_user_id(email)
         conn = db_get_connection()
         c = conn.cursor()
-        processed_video = c.execute(
-            "SELECT processed_video_url FROM operations WHERE user_id=? AND operation_id=?",
+        c.execute(
+            "SELECT processed_video_url FROM operations JOIN users WHERE users.id=? AND operations.id=?",
             (user_id, operation_id),
         )
+        processed_video = c.fetchone()
         if processed_video:
+            logging.info(f"db_get_processed_video(): {processed_video[0]}")
             return processed_video[0]
         else:
             raise Exception("processed_video not found")

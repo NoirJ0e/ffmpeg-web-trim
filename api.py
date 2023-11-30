@@ -10,22 +10,35 @@ import logging
 import database
 import os
 from ffmpeg import ffmpeg_process_video
+import pywebpush
 
 logging.basicConfig(level=logging.INFO)
 
-app = Flask(__name__)
 UPLOAD_FOLDER = "./resources/upload"
 OUTPUT_FOLDER = "./resources/output"
 RES_FOLDER = "./resources"
+
+app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["OUTPUT_FOLDER"] = OUTPUT_FOLDER
 app.config["RES_FOLDER"] = RES_FOLDER
 app.config[
     "JWT_SECRET_KEY"
 ] = "7xquF94FFn9mct3QKtxK8yNRqXZMxRpPnoaytp2ohhVRgA3G32fta8YdcYyQy4a6GEpNEJFTAuAiTmVnFwyMTj6bXgakWVGCNqHu"
+
 jwt = JWTManager(app)
 
+# Initialize the database
 database.db_initialize()
+
+
+def send_push_notificatio():
+    try:
+        pywebpush.webpush(
+            data="Your video is ready!",
+        )
+    except Exception as e:
+        logging.error(f"send_push_notificatio(): Error sending push notification: {e}")
 
 
 @app.route("/register", methods=["POST"])

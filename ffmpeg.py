@@ -3,8 +3,18 @@ import requests
 from datetime import datetime
 import os
 import logging
+import pywebpush
 
 logging.basicConfig(level=logging.INFO)
+
+
+def send_push_notificatio():
+    try:
+        pywebpush.webpush(
+            data="Your video is ready!",
+        )
+    except Exception as e:
+        logging.error(f"send_push_notificatio(): Error sending push notification: {e}")
 
 
 # Incase multiple user operate the same time, unique file name would be better than a static file name

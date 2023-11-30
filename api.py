@@ -28,8 +28,7 @@ app.config[
 
 jwt = JWTManager(app)
 
-
-# Initialize the database
+# Initialize the project
 database.db_initialize()
 
 

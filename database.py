@@ -1,5 +1,6 @@
 import sqlite3
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,6 +16,14 @@ def db_initialize():
         None
     """
     try:
+        # create resources, resources/input, resources/output folders
+        if not os.path.exists("./resources"):
+            os.mkdir("./resources")
+        if not os.path.exists("./resources/input"):
+            os.mkdir("./resources/input")
+        if not os.path.exists("./resources/output"):
+            os.mkdir("./resources/output")
+
         conn = sqlite3.connect("app.db")
         c = conn.cursor()
         c.execute(

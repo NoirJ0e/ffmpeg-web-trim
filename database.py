@@ -5,10 +5,18 @@ logging.basicConfig(level=logging.INFO)
 
 
 def db_initialize():
+    """
+    Initializes the database by creating necessary tables if they don't exist.
+
+    Raises:
+        Exception: If there is an error initializing the database.
+
+    Returns:
+        None
+    """
     try:
         conn = sqlite3.connect("app.db")
         c = conn.cursor()
-        # Create user table
         c.execute(
             """CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,6 +45,15 @@ def db_initialize():
 
 
 def db_get_connection():
+    """
+    Establishes a connection to the SQLite database.
+
+    Returns:
+        conn (sqlite3.Connection): The connection object to the database.
+
+    Raises:
+        Exception: If there is an error connecting to the database.
+    """
     try:
         conn = sqlite3.connect("app.db")
         conn.row_factory = sqlite3.Row
@@ -46,6 +63,16 @@ def db_get_connection():
 
 
 def db_check_user(email, hashed_password):
+    """
+    Check if a user exists in the database with the given email and hashed password.
+
+    Args:
+        email (str): The email of the user.
+        hashed_password (str): The hashed password of the user.
+
+    Returns:
+        int or None: The user ID if the user exists, None otherwise.
+    """
     try:
         conn = db_get_connection()
         c = conn.cursor()
@@ -66,6 +93,15 @@ def db_check_user(email, hashed_password):
 
 
 def db_get_user_id(email):
+    """
+    Retrieve the user ID associated with the given email from the database.
+
+    Args:
+        email (str): The email of the user.
+
+    Returns:
+        int or None: The user ID if found, None otherwise.
+    """
     try:
         conn = db_get_connection()
         c = conn.cursor()
@@ -81,6 +117,16 @@ def db_get_user_id(email):
 
 
 def db_add_user(email, hashed_password):
+    """
+    Add a new user to the database.
+
+    Args:
+        email (str): The email address of the user.
+        hashed_password (str): The hashed password of the user.
+
+    Returns:
+        bool: True if the user was successfully added, False otherwise.
+    """
     try:
         conn = db_get_connection()
         c = conn.cursor()
@@ -100,6 +146,20 @@ def db_add_user(email, hashed_password):
 def db_add_operation(
     user_id, video_url, start_time, end_time, processed_video_url, finished=0
 ):
+    """
+    Add an operation to the database.
+
+    Args:
+        user_id (int): The ID of the user.
+        video_url (str): The URL of the original video.
+        start_time (str): The start time of the operation.
+        end_time (str): The end time of the operation.
+        processed_video_url (str): The URL of the processed video.
+        finished (int, optional): The status of the operation. Defaults to 0(Unfinished).
+
+    Returns:
+        bool: True if the operation was added successfully, False otherwise.
+    """
     logging.info(f"db_add_operation(): processing video {processed_video_url}")
     try:
         conn = db_get_connection()
@@ -117,12 +177,29 @@ def db_add_operation(
         conn.close()
 
 
-def db_get_operation_id(email):
+def db_get_operation_id(email, processed_video_url):
+    """
+    Retrieves the operation ID associated with the given email and processed video URL.
+
+    Args:
+        email (str): The email of the user.
+        processed_video_url (str): The URL of the processed video.
+
+    Returns:
+        int: The operation ID if found, None otherwise.
+
+    Raises:
+        Exception: If the operation is not found.
+
+    """
     try:
         user_id = db_get_user_id(email)
         conn = db_get_connection()
         c = conn.cursor()
-        c.execute("SELECT id FROM operations WHERE user_id=?", (user_id,))
+        c.execute(
+            "SELECT id FROM operations WHERE user_id=? AND processed_video_url=?",
+            (user_id, processed_video_url),
+        )
         operation_id = c.fetchone()
         if operation_id:
             return operation_id[0]
@@ -136,12 +213,22 @@ def db_get_operation_id(email):
 
 
 def db_get_processed_video(email, operation_id):
+    """
+    Retrieves the processed video URL from the database for the given email and operation ID.
+
+    Args:
+        email (str): The email of the user.
+        operation_id (int): The ID of the operation.
+
+    Returns:
+        str: The URL of the processed video if found, None otherwise.
+    """
     try:
         user_id = db_get_user_id(email)
         conn = db_get_connection()
         c = conn.cursor()
         c.execute(
-            "SELECT processed_video_url FROM operations JOIN users WHERE users.id=? AND operations.id=?",
+            "SELECT processed_video_url FROM operations WHERE operations.user_id=? AND operations.id=?",
             (user_id, operation_id),
         )
         processed_video = c.fetchone()
@@ -153,3 +240,34 @@ def db_get_processed_video(email, operation_id):
     except Exception as e:
         logging.error(f"db_get_processed_video(): Error getting processed_video: {e}")
         return None
+
+
+def db_set_operation_finished(email, output_file):
+    """
+    Sets the 'finished' flag to 1 for the specified operation in the database.
+
+    Args:
+        email (str): The email of the user.
+        output_file (str): The URL of the processed video file.
+
+    Returns:
+        bool: True if the operation was successfully updated, False otherwise.
+    """
+    try:
+        user_id = db_get_user_id(email)
+        conn = db_get_connection()
+        c = conn.cursor()
+        c.execute(
+            "UPDATE operations SET finished=1 WHERE operations.user_id=? AND operations.processed_video_url=?",
+            (user_id, output_file),
+        )
+        conn.commit()
+        logging.info(f"db_set_operation_finished(): operation {output_file} finished")
+        return True
+    except Exception as e:
+        logging.error(
+            f"db_set_operation_finished(): Error setting operation finished: {e}"
+        )
+        return False
+    finally:
+        conn.close()

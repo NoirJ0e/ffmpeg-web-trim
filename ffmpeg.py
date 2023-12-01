@@ -3,6 +3,8 @@ import subprocess
 import os
 import logging
 import uuid
+import database
+import api
 
 logging.basicConfig(level=logging.INFO)
 
@@ -65,9 +67,10 @@ def create_unique_file(prefix="", extension=".mp4", parent_folder=""):
 #         logging.error(f"download_video(): Error downloading video: {e}")
 
 
-def ffmpeg_process_video(src_file, start_time, end_time, resouce_folder, output_file):
+def ffmpeg_process_video(src_file, start_time, end_time, resouce_folder, output_file, user_email):
     """
     Process a video file using FFmpeg.
+    Set the operation status to when the edit is done to finished in the database.
 
     Args:
         src_file (str): The source video file path.
@@ -75,6 +78,7 @@ def ffmpeg_process_video(src_file, start_time, end_time, resouce_folder, output_
         end_time (str): The end time of the video trim (in HH:MM:SS format).
         resouce_folder (str): The folder path where the FFmpeg command will be executed.
         output_file (str): The output file path for the processed video.
+        user_email (str): The email address of the user.
 
     Raises:
         Exception: If there is an error processing the video.
@@ -86,6 +90,15 @@ def ffmpeg_process_video(src_file, start_time, end_time, resouce_folder, output_
 
         logging.info(f"process_video(): Running command {command}")
         subprocess.run(command, shell=True, cwd=resouce_folder)
+
+        subscription_info = database.db_get_subscription_info(user_email)
+        if subscription_info.strip('"') == "None":
+            subscription_info = None
+
+        if subscription_info is not None:
+            api.send_push_notificatio(subscription_info, "Your Video is ready to download")
+
+        database.db_set_operation_finished(user_email, output_file)
 
         logging.info("process_video(): Video processed successfully")
     except Exception as e:

@@ -12,6 +12,7 @@ import os
 from ffmpeg import ffmpeg_process_video, create_unique_file
 import pywebpush
 import json
+import threading
 
 logging.basicConfig(level=logging.INFO)
 
@@ -149,8 +150,6 @@ def edit_video():
     The request payload should contain the source file path, start time, and end time for the video editing.
     It creates a unique output file path and adds the video editing operation to the database.
     Then, it calls the `ffmpeg_process_video` function to process the video using the provided parameters.
-    After the video processing is complete, it sends a push notification to the user.
-    Finally, it updates the database to mark the operation as finished and returns the edited video URL.
 
     Returns:
         A JSON response with the success status and the edited video URL.
@@ -169,24 +168,25 @@ def edit_video():
 
         output_file = create_unique_file(parent_folder="./output")
 
-        database.db_add_operation(
+        operation_id = database.db_add_operation(
             user_id, src_file_path, start_time, end_time, output_file
         )
 
-        # Process the video (this function needs to be implemented)
-        ffmpeg_process_video(
-            src_file_path, start_time, end_time, app.config["RES_FOLDER"], output_file
+        thread = threading.Thread(
+            target=ffmpeg_process_video,
+            args=(
+                src_file_path,
+                start_time,
+                end_time,
+                app.config["RES_FOLDER"],
+                output_file,
+                user_email,
+            ),
         )
+        logging.info("edit_video(): Starting thread")
+        thread.start()
 
-        subscription_info = database.db_get_subscription_info(user_email)
-        if subscription_info.strip('"') == "None":
-            subscription_info = None
-
-        if subscription_info is not None:
-            send_push_notificatio(subscription_info, "Your Video is ready to download")
-
-        database.db_set_operation_finished(user_email, output_file)
-        return jsonify({"success": True, "edited_video_url": output_file}), 200
+        return jsonify({"success": True, "operation_id": operation_id}), 200
     except Exception as e:
         logging.error(f"edit_video(): {e}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -206,6 +206,10 @@ def download_video():
     try:
         user_email = get_jwt_identity()
         operation_id = request.args.get("operation_id")
+
+        if not database.db_operation_is_finished(operation_id):
+            return jsonify({"error": "Operation not finished yet"}), 404
+
         download_file = database.db_get_processed_video(user_email, operation_id)
         if not download_file:
             return jsonify({"error": "Video not found"}), 404

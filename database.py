@@ -145,8 +145,9 @@ def db_add_user(email, hashed_password):
             "INSERT INTO users (email, hashed_password) VALUES (?, ?)",
             (email, hashed_password),
         )
+        operation_id = c.lastrowid
         conn.commit()
-        return True
+        return operation_id
     except Exception as e:
         logging.error(f"db_add_user(): Error adding user: {e}")
         return False
@@ -169,7 +170,7 @@ def db_add_operation(
         finished (int, optional): The status of the operation. Defaults to 0(Unfinished).
 
     Returns:
-        bool: True if the operation was added successfully, False otherwise.
+        operation_id for the operation if the operation was successfully added, False otherwise.
     """
     logging.info(f"db_add_operation(): processing video {processed_video_url}")
     try:
@@ -310,6 +311,37 @@ def db_get_subscription_info(email):
     except Exception as e:
         logging.error(
             f"deb_get_subscription_info(): Error getting subscription_info: {e}"
+        )
+        return None
+    finally:
+        conn.close()
+
+def db_operation_is_complete(operation_id):
+    """
+    Checks if the operation with the given ID is complete.
+
+    Args:
+        operation_id (int): The ID of the operation.
+
+    Returns:
+        bool: True if the operation is complete, False otherwise.
+    """
+    try:
+        conn = db_get_connection()
+        c = conn.cursor()
+        c.execute(
+            "SELECT finished FROM operations WHERE operations.id=?",
+            (operation_id,),
+        )
+        finished = c.fetchone()
+        if finished == 1:
+            logging.info("deb_operation_is_complete(): Retrieved finished")
+            return True
+        else:
+            return False
+    except Exception as e:
+        logging.error(
+            f"deb_operation_is_complete(): Error getting finished: {e}"
         )
         return None
     finally:

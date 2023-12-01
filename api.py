@@ -36,13 +36,10 @@ database.db_initialize()
 def send_push_notificatio(subscription_info, msg):
     logging.info("send_push_notificatio(): Sending push notification")
     try:
-        if subscription_info is None:
-            return
-        else:
-            pywebpush.webpush(
-                subscription_info=subscription_info,
-                data=msg,
-            )
+        pywebpush.webpush(
+            subscription_info=subscription_info,
+            data=msg,
+        )
     except Exception as e:
         logging.error(f"send_push_notificatio(): Error sending push notification: {e}")
 
@@ -182,7 +179,11 @@ def edit_video():
         )
 
         subscription_info = database.db_get_subscription_info(user_email)
-        send_push_notificatio(subscription_info, "Your Video is ready to download")
+        if subscription_info.strip('"') == "None":
+            subscription_info = None
+
+        if subscription_info is not None:
+            send_push_notificatio(subscription_info, "Your Video is ready to download")
 
         database.db_set_operation_finished(user_email, output_file)
         return jsonify({"success": True, "edited_video_url": output_file}), 200

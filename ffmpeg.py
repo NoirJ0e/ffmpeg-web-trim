@@ -1,8 +1,8 @@
 # import requests
 import subprocess
-from datetime import datetime
 import os
 import logging
+import uuid
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,8 +24,8 @@ def create_unique_file(prefix="", extension=".mp4", parent_folder=""):
         Exception: If there is an error creating the unique file name.
     """
     try:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        result_path = os.path.join(parent_folder, f"{prefix}{timestamp}{extension}")
+        identifier = str(uuid.uuid4())
+        result_path = os.path.join(parent_folder, f"{prefix}{identifier}{extension}")
 
         logging.info(
             f"create_unique_file_name(): Created unique file name {result_path}"

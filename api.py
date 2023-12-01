@@ -11,6 +11,7 @@ import database
 import os
 from ffmpeg import ffmpeg_process_video, create_unique_file
 import pywebpush
+import json
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,12 +33,16 @@ jwt = JWTManager(app)
 database.db_initialize()
 
 
-def send_push_notificatio(msg):
+def send_push_notificatio(subscription_info, msg):
     logging.info("send_push_notificatio(): Sending push notification")
     try:
-        pywebpush.webpush(
-            data=msg,
-        )
+        if subscription_info is None:
+            return
+        else:
+            pywebpush.webpush(
+                subscription_info=subscription_info,
+                data=msg,
+            )
     except Exception as e:
         logging.error(f"send_push_notificatio(): Error sending push notification: {e}")
 
@@ -54,23 +59,26 @@ def register_user():
     :return: JSON response with success or error message
     """
     logging.info("register_user(): Registering user")
+    conn = None
     try:
         data = request.get_json()
         user_email = data.get("email")
         hashed_password = data.get("hashed_password")
+        subscription_info = json.dumps(data.get("subscription_info"))
         conn = database.db_get_connection()
         c = conn.cursor()
         if not database.db_check_user(user_email, hashed_password):
             c.execute(
-                "INSERT INTO users (email, hashed_password) VALUES (?, ?)",
-                (user_email, hashed_password),
+                "INSERT INTO users (email, hashed_password, subscription_info) VALUES (?, ?, ?)",
+                (user_email, hashed_password, subscription_info),
             )
             conn.commit()
             return jsonify({"success": True}), 200
         else:
             return jsonify({"error": "User already exists"}), 400
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 
 @app.route("/user", methods=["POST"])
@@ -173,10 +181,11 @@ def edit_video():
             src_file_path, start_time, end_time, app.config["RES_FOLDER"], output_file
         )
 
-        send_push_notificatio("Your Video is ready to download")
+        subscription_info = database.db_get_subscription_info(user_email)
+        send_push_notificatio(subscription_info, "Your Video is ready to download")
+
         database.db_set_operation_finished(user_email, output_file)
         return jsonify({"success": True, "edited_video_url": output_file}), 200
-
     except Exception as e:
         logging.error(f"edit_video(): {e}")
         return jsonify({"error": "Internal Server Error"}), 500

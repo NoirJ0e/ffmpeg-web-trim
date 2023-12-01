@@ -8,6 +8,7 @@ logging.basicConfig(level=logging.INFO)
 def db_initialize():
     """
     Initializes the database by creating necessary tables if they don't exist.
+    Also creates the resources, resources/input, resources/output folders if they don't exist.
 
     Raises:
         Exception: If there is an error initializing the database.
@@ -30,7 +31,8 @@ def db_initialize():
             """CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     email TEXT UNIQUE NOT NULL,
-                    hashed_password TEXT NOT NULL
+                    hashed_password TEXT NOT NULL,
+                    subscription_info TEXT  DEFAULT NULL
                     )"""
         )
         c.execute(
@@ -278,5 +280,37 @@ def db_set_operation_finished(email, output_file):
             f"db_set_operation_finished(): Error setting operation finished: {e}"
         )
         return False
+    finally:
+        conn.close()
+
+
+def db_get_subscription_info(email):
+    """
+    Retrieves the subscription info from the database for the given email.
+
+    Args:
+        email (str): The email of the user.
+
+    Returns:
+        str: The subscription info if found, None otherwise.
+    """
+    try:
+        conn = db_get_connection()
+        c = conn.cursor()
+        c.execute(
+            "SELECT subscription_info FROM users WHERE users.email=?",
+            (email,),
+        )
+        subscription_info = c.fetchone()
+        if subscription_info:
+            logging.info("deb_get_subscription_info(): Retrieved subscription_info")
+            return subscription_info[0]
+        else:
+            raise Exception("subscription_info not found")
+    except Exception as e:
+        logging.error(
+            f"deb_get_subscription_info(): Error getting subscription_info: {e}"
+        )
+        return None
     finally:
         conn.close()
